@@ -64,7 +64,8 @@ public class ElectionDataViewer extends JFrame
 	
 	// THE NORTH PANEL HAS THE CONTROLS
 	private JPanel northPanel;
-	
+	// southPanel has the electoral votes summation
+	private JPanel southPanel;
 	// FILE MANAGEMENT
 	private JToolBar fileToolBar;
 	private JButton openButton;
@@ -199,6 +200,7 @@ public class ElectionDataViewer extends JFrame
 		
 		// AND NOW PLACE EVERYTHING INSIDE THE FRAME
 		add(northPanel, BorderLayout.NORTH);
+		add(southPanel, BorderLayout.SOUTH);
 	}
 	
 	/**
@@ -305,7 +307,7 @@ public class ElectionDataViewer extends JFrame
 		JScrollPane tableContainer = new JScrollPane(tableEditor);
 		tableEditor.setEditorKit(tableEditor.getEditorKitForContentType("text/html"));
 		tableEditor.setText(htmlTable);
-		add(tableContainer);
+		add(tableContainer, BorderLayout.CENTER);
 	}
 	public Object[][] useAllKeys(ElectionDataModel model, Object[] columnLabels){
 		Comparable theKey = dataModel.getElectionResults().getTree().firstKey();
@@ -336,35 +338,53 @@ public class ElectionDataViewer extends JFrame
 		
 		return document;
 	}
-	public String buildTable(String document, Object[][] data){
-		Comparable theKey=dataModel.getCandidates().getTree().firstKey();
-		int rgb[][] = new int[data.length-1][dataModel.getParties().getNumFields()-1];
-		for(int i=0; i<rgb.length; i++){
-			for(int j=0; j<rgb[i].length; j++){
-				/*In order to decode what this monstrosity does
-				 * 1)(Comparable)dataModel.getCandidates().getRecord(theKey).getAllData()[1] gets the candidate's party and
-				 * converts it to a Comparable so it can be used as a key.
-				 * 2)dataModel.getParties().getRecord(1).getAllData()[1] gets the relevant r,g, or b color code.
-				 * 3)In order to get an Integer, we need this to be a string, so we convert it to a string and then pass
-				 * it to the static decode method.
-				 * 4)Finally using the intValue() method of Integer the value is converted to an integer so we can later
-				 * convert this to a hexadecimal number to be used in altering the color of the winner of the state.
-				 */
-				rgb[i][j] = Integer.decode(dataModel.getParties().getRecord((Comparable)dataModel.getCandidates().
-						getRecord(theKey).getAllData()[1]).getAllData()[j+1].toString()).intValue();
-			}
-			theKey = dataModel.getCandidates().getTree().higherKey(theKey);
+	public String correctColor(Object candidate){
+		String hexColor ="#";
+		for(int j=0; j<dataModel.getParties().getNumFields()-1; j++){
+			/*In order to decode what this monstrosity does
+			 * 1)(Comparable)dataModel.getCandidates().getRecord(theKey).getAllData()[1] gets the candidate's party and
+			 * converts it to a Comparable so it can be used as a key.
+			 * 2)dataModel.getParties().getRecord(1).getAllData()[j+1] gets the relevant r,g, or b color code.
+			 * 3)In order to get an Integer, we need this to be a string, so we convert it to a string and then pass
+			 * it to the static decode method.
+			 * 4)Finally using the intValue() method of Integer the value is converted to an integer so we can later
+			 * convert this to a hexadecimal number to be used in altering the color of the winner of the state.
+			 */
+			int hexTemp = Integer.decode(dataModel.getParties().getRecord((Comparable)dataModel.getCandidates().
+					getRecord((Comparable)candidate).getAllData()[1]).getAllData()[j+1].toString()).intValue();
+			String first =Integer.toHexString(hexTemp/16)+Integer.toHexString(hexTemp % 16);
+			hexColor+=first;
 		}
+		return hexColor;
+	}
+	public String buildTable(String document, Object[][] data){
+		//FUTURE NOTE: MODUALIZE THIS
 		for(int i=0; i<data.length; i++){
 			document+="<tr>";
 			for(int j=0; j<data[i].length; j++){
+				String dataString = ""+data[i][j];
 				if(i==0){
 					document+="<th>";
 				}
-				else {
+				else{
 					document+="<td>";
+					if(j==3){
+						boolean purple=false;
+						for(int k=0; k<dataString.length(); k++){
+							if(dataString.charAt(k)==40){
+								purple=true;	
+								break;
+							}
+						}
+						if(!purple){
+							String realHex =correctColor(data[i][j]);
+							document+="<font color="+realHex+">";
+						}
+						else
+							document+="<font color=purple>";
+					}
 				}
-				document+= ""+data[i][j];
+				document+= dataString;
 				if(i==0) {
 					document+="</th>";
 				}
