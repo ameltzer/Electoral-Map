@@ -33,6 +33,7 @@ public class DBFRecord
 	public Object[] getAllData()		{ return fieldData; 		}
 	public byte 	getMystery()		{ return mystery;			}
 	public Object 	getData(int index) 	{ return fieldData[index];	}
+	public Long 	getEV()				{ return (Long)fieldData[2];}
 
 	// MUTATOR METHODS
 	public void setData(Object data, int index) { fieldData[index] = data;	}

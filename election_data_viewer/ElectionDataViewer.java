@@ -8,10 +8,8 @@ import java.awt.Image;
 import java.awt.Insets;
 import java.awt.MediaTracker;
 import java.awt.Toolkit;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Iterator;
 
 import javax.swing.BorderFactory;
@@ -26,11 +24,8 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JToolBar;
+import javax.swing.SwingConstants;
 import javax.swing.border.Border;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.Element;
-import javax.swing.text.html.HTMLDocument;
-import javax.swing.text.html.HTMLEditorKit;
 
 import dbf_data.DBFField;
 import dbf_data.DBFRecord;
@@ -66,6 +61,7 @@ public class ElectionDataViewer extends JFrame
 	private JPanel northPanel;
 	// southPanel has the electoral votes summation
 	private JPanel southPanel;
+	private JScrollPane tableContainer;
 	// FILE MANAGEMENT
 	private JToolBar fileToolBar;
 	private JButton openButton;
@@ -200,7 +196,6 @@ public class ElectionDataViewer extends JFrame
 		
 		// AND NOW PLACE EVERYTHING INSIDE THE FRAME
 		add(northPanel, BorderLayout.NORTH);
-		add(southPanel, BorderLayout.SOUTH);
 	}
 	
 	/**
@@ -304,10 +299,86 @@ public class ElectionDataViewer extends JFrame
 		String htmlTable = buildDocument(data);
 		
 		JEditorPane tableEditor = new JEditorPane();
-		JScrollPane tableContainer = new JScrollPane(tableEditor);
+		tableContainer = new JScrollPane(tableEditor);
 		tableEditor.setEditorKit(tableEditor.getEditorKitForContentType("text/html"));
 		tableEditor.setText(htmlTable);
+		addNewGui(data);
+	}
+	public void addNewGui(Object[][] data){
 		add(tableContainer, BorderLayout.CENTER);
+		Comparable theKey = dataModel.getElectionResults().getTree().firstKey();
+		BigDecimal electoralVotes= new BigDecimal(0);
+		Candidate[] candidates = candidateNames();
+		for(int i=0;theKey!=null; i++){
+			boolean purple=true;
+			electoralVotes=electoralVotes.add(new BigDecimal(dataModel.getElectionResults().getRecord(theKey).getEV()));
+			for(int j=0; j<candidates.length; j++){
+				Object state = dataModel.getElectionResults().getRecord(theKey);
+				if(dataModel.getElectionResults().getRecord(theKey).getData(3).equals(candidates[j].getCandidate())){
+					candidates[j].add(new BigDecimal(dataModel.getElectionResults().getRecord(theKey).getEV()));
+					purple =false;
+					break;
+				}
+			}
+			if(purple){
+				String purpleString = (String)dataModel.getElectionResults().getRecord(theKey).getData(3);
+				int firstParen=0;
+				for(int j=0; j<purpleString.length(); j++){
+					int number;
+					String name;
+					if(purpleString.charAt(j)==40)
+						firstParen=j;
+					else if(purpleString.charAt(j)==41){
+						number = Integer.valueOf(purpleString.substring(firstParen+1, j));
+						int k=firstParen;
+						while(purpleString.charAt(k)!=41 && k>0){
+							k--;
+						}
+						if(k==0)
+							name=purpleString.substring(k,firstParen);
+						else
+							name=purpleString.substring(k+1,firstParen);
+						for(int l=0; l<candidates.length; l++){
+							String trimmedCandidate = candidates[l].getCandidate().trim();
+							String trimmedName = name.trim();
+							if(trimmedCandidate.equals(trimmedName)){
+								candidates[l].add(new BigDecimal(number));
+								break;
+							}
+						}
+					}
+				}
+			}
+			theKey = dataModel.getElectionResults().getTree().higherKey(theKey);
+		}
+		JLabel totalEV = new JLabel("TOTAL ELECTORAL VOTES: "+electoralVotes.toString());
+		southPanel= new JPanel();
+		totalEV.setFont(new Font("Times New Roman", Font.PLAIN, 24));
+		totalEV.setHorizontalAlignment(SwingConstants.TRAILING);
+		southPanel.add(totalEV);
+		for(int i=0; i<dataModel.getCandidates().getNumberOfRecords(); i++){
+			JLabel candidateLabel = new JLabel(candidates[i].getCandidate()+" : "+
+					candidates[i].getElectoralVotes().toString());
+			candidateLabel.setVerticalAlignment(SwingConstants.BOTTOM);
+			int[] colors = new int[3];
+			for(int j=0; j<colors.length; j++){
+				colors[j]= Integer.decode(dataModel.getParties().getRecord((Comparable)dataModel.getCandidates().
+						getRecord((Comparable)candidates[i].getCandidate()).
+						getAllData()[1]).getAllData()[j+1].toString()).intValue();
+			}
+			candidateLabel.setForeground(new Color(colors[0],colors[1],colors[2]));
+			southPanel.add(candidateLabel);
+		}
+		add(southPanel, BorderLayout.SOUTH);
+	}
+	public Candidate[] candidateNames(){
+		Candidate[] candidates = new Candidate[dataModel.getCandidates().getNumberOfRecords()];
+		Comparable theKey = dataModel.getCandidates().getTree().firstKey();
+		for(int i=0; theKey!=null; i++){
+			candidates[i]= new Candidate((String)dataModel.getCandidates().getRecord(theKey).getData(0),i);
+			theKey = dataModel.getCandidates().getTree().higherKey(theKey);
+		}
+		return candidates;
 	}
 	public Object[][] useAllKeys(ElectionDataModel model, Object[] columnLabels){
 		Comparable theKey = dataModel.getElectionResults().getTree().firstKey();
