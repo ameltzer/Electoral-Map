@@ -38,6 +38,7 @@ public class DBFTable
 	private byte codePageMark;
 	private short reserved;
 	private byte terminator;
+	private ArrayList data;
 
 	/**
 	 * This default constructor simply sets up the fields and records ArrayLists.
@@ -70,6 +71,7 @@ public class DBFTable
 	public DBFField 			getField(int index)					{ return fields.get(index); 			}
 	public int 					getNumFields()						{ return fields.size();					}
 	public int 					getNumRecords()						{ return records.size();				}
+	public ArrayList 			getArrayList()						{ return data;							}
 	//Added one accessor to retrieve the treemap
 	public TreeMap<Comparable,DBFRecord> getTree()					{ return records; 						}
 	/**
@@ -376,7 +378,7 @@ public class DBFTable
 	 * @param increasing If true, the records will be sorted in increasing
 	 * order. It will use decreasing order otherwise.
 	 */
-	public void sortRecords(String fieldName, boolean increasing)
+	public ArrayList sortRecords(String fieldName, boolean increasing)
 	{
 		// FIND THE SORTING CRITERIA INDEX
 		int fieldIndex = -1;
@@ -390,13 +392,20 @@ public class DBFTable
 		}
 
 		// ONLY SORT IF IT'S FOUND
+		data = new ArrayList();
 		if (fieldIndex >= 0)
 		{
 			DBFRowSorter rowSorter = new DBFRowSorter(fieldIndex, increasing);
-			
+			Comparable theKey = records.firstKey();
+			for(int i=0; theKey!=null; i++){
+				data.add(records.get(theKey));
+				theKey = records.higherKey(theKey);
+			}
+			Collections.sort(data, rowSorter);
 			// UPDATE THE TABLE STATS
 			update();
 		}
+		return data;
 	}	
 
 	/**

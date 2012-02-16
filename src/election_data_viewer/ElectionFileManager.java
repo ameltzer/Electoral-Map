@@ -19,7 +19,7 @@ import dbf_data.DBFTable;
  * This class is used for managing the loading of data from DBF files. It 
  * provides service methods to be used by the event handlers.
  * 
- * @author Richard McKenna
+ * @author Richard McKenna, Aaron Meltzer Only a small change was made to direct the open thread to ElectionData Viewer
  */
 public class ElectionFileManager 
 {
@@ -54,6 +54,7 @@ public class ElectionFileManager
 	
 	// ACCESSOR METHOD
 	public File getSelectedFile() { return selectedFile; }
+	public ElectionDataViewer getData() {return view;      }
 
 	/**
 	 * This method provides a custom response for when the user has
@@ -128,6 +129,7 @@ public class ElectionFileManager
 
 					// KEEP THE FILE WE LOADED, WE MIGHT NEED IT AGAIN
 					selectedFile = file;
+					//direct the thread now to ElectionDataViewer
 					view.processOpen();
 				}
 				catch(Exception e)
