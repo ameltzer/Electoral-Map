@@ -394,34 +394,90 @@ public class ElectionDataViewer extends JFrame
 		return data;
 	}
 	/*
-	 * @params purple:String
-	 * @return info:PurpleStringInfo
-	 * This function takes in a string in which votes are split (despite the name it need not be purple)
-	 * parses the information and stores it in the PurpleStringInfo class
+	 * @param data:Object[][]
+	 * @return String
+	 * This function takes the data, initializes the start and end of html and calls the buildTable to do the rest.
 	 */
-	public PurpleStringInfo purpleNamesVotes(String purple){
-		//initializes the PurpleStringInfo object
-		PurpleStringInfo info = new PurpleStringInfo();
-		int firstParen=0;
-		for(int j=0; j<purple.length(); j++){
-			// if the ASCII value is 40 the first paren is found, record it
-			if(purple.charAt(j)==40)
-				firstParen=j;
-			//likewise now the second paren is found, isolate the string between the parens
-			//and go back and record the name. Do this until the end is reached
-			else if(purple.charAt(j)==41){
-				info.addEV(new BigDecimal(Integer.valueOf(purple.substring(firstParen+1, j))));
-				int k=firstParen;
-				while(purple.charAt(k)!=41 && k>0){
-					k--;
+	public String buildDocument(Object[][] data){
+		final String START_HTML= "<html><body><table border=1>";
+		final String END_HTML= "</table></body></html>";
+		String document=START_HTML;
+		document = buildTable(document,data);
+		//add the rest of the html on.
+		document+=END_HTML;
+		
+		return document;
+	}
+	/*
+	 * params data:Object[][], document:String
+	 * @return String
+	 * This function takes in the document variable and the data and fills in the html table
+	 * as is necessary for each field
+	 */
+	public String buildTable(String document, Object[][] data){
+		//go through each row
+		for(int i=0; i<data.length; i++){
+			document+="<tr>";
+			for(int j=0; j<data[i].length; j++){
+				String dataString = ""+data[i][j];
+				//if this is the first row, make sure the tag used is for headers. Otherwise
+				//use the regular tag
+				if(i==0) document+="<th>";
+				else{
+					document+="<td>";
+					//check if the last field is a split vote result
+					if(j==3){
+						boolean purple=false;
+						for(int k=0; k<dataString.length(); k++){
+							//if there is a "(" at any point then it must be a split vote
+							if(dataString.charAt(k)==40){
+								purple=true;	
+								break;
+							}
+						}
+						//add in the color depending on whether it is a mixed vote or not.
+						//note despite the name the mixed vote color is not always purple
+						if(!purple){
+							String realHex =correctColor(data[i][j]);
+							document+="<font color="+realHex+">";
+						}
+						else{
+							String comboHex = mixColors(purpleNamesVotes((String)data[i][j]));
+							document+="<font color="+comboHex+">";
+						}
+					}
 				}
-				if(k==0)
-					info.addName(purple.substring(k,firstParen));
-				else
-					info.addName(purple.substring(k+1,firstParen));
+				document+= dataString;
+				if(i==0) document+="</th>";
+				else document+="</td>";
 			}
+			document+="</tr>";
 		}
-		return info;
+		return document;
+	}
+	/*
+	 * @param candidate:Object
+	 * This function returns the correct color for a candidate who has won a state
+	 */
+	public String correctColor(Object candidate){
+		String hexColor ="#";
+		for(int j=0; j<dataModel.getParties().getNumFields()-1; j++){
+			/*In order to decode what this monstrosity does
+			 * 1)(Comparable)dataModel.getCandidates().getRecord(theKey).getAllData()[1] gets the candidate's party and
+			 * converts it to a Comparable so it can be used as a key.
+			 * 2)dataModel.getParties().getRecord(1).getAllData()[j+1] gets the relevant r,g, or b color code.
+			 * 3)In order to get an Integer, we need this to be a string, so we convert it to a string and then pass
+			 * it to the static decode method.
+			 * 4)Finally using the intValue() method of Integer the value is converted to an integer so we can later
+			 * convert this to a hexadecimal number to be used in altering the color of the winner of the state.
+			 */
+			Comparable one = (Comparable)dataModel.getCandidates().getRecord((Comparable)candidate).getAllData()[1];
+			Object two = dataModel.getParties().getRecord(one).getAllData()[j+1];
+			int hexTemp = Integer.decode(two.toString()).intValue();
+			String first =Integer.toHexString(hexTemp/16)+Integer.toHexString(hexTemp % 16);
+			hexColor+=first;
+		}
+		return hexColor;
 	}
 	/*
 	 * @params info:PurpleStringInfo
@@ -452,47 +508,33 @@ public class ElectionDataViewer extends JFrame
 		return mix;
 	}
 	/*
-	 * @params candidates:Candidate[]
-	 * @returns Candidate[]
-	 * this function takes an array of candidates and calculates how much each electoral votes
-	 * each candidate received
+	 * @params purple:String
+	 * @return info:PurpleStringInfo
+	 * This function takes in a string in which votes are split (despite the name it need not be purple)
+	 * parses the information and stores it in the PurpleStringInfo class
 	 */
-	public Candidate[] calculateEV(Candidate[] candidates, Object[][]data){
-		//get the necessary key
-		Comparable theKey = dataModel.getElectionResults().getTree().firstKey();
-		for(int i=1; theKey!=null; i++){
-			boolean purple=true;
-			//test if the current line is split, if not, change the boolean to false.
-			//We know it is not a split vote if it matches at least one candidate in candidates.
-			for(int j=0; j<candidates.length; j++){
-				if((data[i][3]).equals(candidates[j].getCandidate())){
-					candidates[j].add(new BigDecimal(data[i][2].toString()));
-					purple =false;
-					break;
-				}
+	public PurpleStringInfo purpleNamesVotes(String purple){
+		//initializes the PurpleStringInfo object
+		PurpleStringInfo info = new PurpleStringInfo();
+		int firstParen=0;
+		for(int j=0; j<purple.length(); j++){
+			// if the ASCII value is 40 the first paren is found, record it
+			if(purple.charAt(j)==40)
+				firstParen=j;
+			//likewise now the second paren is found, isolate the string between the parens
+			//and go back and record the name. Do this until the end is reached
+			else if(purple.charAt(j)==41){
+				info.addEV(new BigDecimal(Integer.valueOf(purple.substring(firstParen+1, j))));
+				int k=firstParen;
+				while(purple.charAt(k)!=41 && k>0)
+					k--;
+				if(k==0)
+					info.addName(purple.substring(k,firstParen));
+				else
+					info.addName(purple.substring(k+1,firstParen));
 			}
-			if(purple){
-				//if it is a split vote, parse the information and store it in a PurpleStringInfo object
-				PurpleStringInfo info = purpleNamesVotes((String)dataModel.getElectionResults().
-							getRecord(theKey).getData(3));
-				for(int k=0; k<info.getEv().capacity(); k++){
-					//trim the string so no unnecessary whitespace causes difficulty with testing equality
-					String trimmedCandidate = ((String)info.getNames().get(k)).trim();
-					for(int j=0; j<candidates.length; j++){
-						// check if the string matches any candidates, likewise trim the candidate String
-						String trimmedName = candidates[j].getCandidate().trim();
-						//if there is a match, add the electoral vote to the relevant candidate's total
-						if(trimmedCandidate.equals(trimmedName)){
-							candidates[j].add(info.getEv().get(k));
-							break;
-						}
-					}
-				}
-			}
-			//increment key
-			theKey = dataModel.getElectionResults().getTree().higherKey(theKey);
 		}
-		return candidates;
+		return info;
 	}
 	/*
 	 * @param data:Object[][]
@@ -509,19 +551,6 @@ public class ElectionDataViewer extends JFrame
 		setLowerSouth();
 		add(southPanel, BorderLayout.SOUTH);
 		//retrieve all possible candidates
-	}
-	public Candidate[] sortCandidatesByEv(Candidate[] candidates){
-		Candidate temp = new Candidate("", 0);
-		for(int i=0; i<candidates.length-1; i++){
-			for(int j=i+1; j<candidates.length; j++)
-				if(candidates[i].getElectoralVotes().intValueExact()< candidates[j].getElectoralVotes().intValueExact()){
-					temp = candidates[i];
-					candidates[i]=candidates[j];
-					candidates[j]=temp;
-					break;
-			}
-		}
-		return candidates;
 	}
 	/*
 	 * This function sets the number of electoral votes each candidate got and display them. The name
@@ -544,8 +573,7 @@ public class ElectionDataViewer extends JFrame
 		String document = "<html><body><p><font size=15> TOTAL ELECTORAL VOTES: " + electoralVotes.toString()+"</p><p>";
 		candidates =sortCandidatesByEv(candidates);
 		//set up the inner south panel, which is for the individual electoral vote totals
-		//from highest to lowest write the individual electoral vote totals
-		
+		//from highest to lowest write the individual electoral vote totals	
 		for(int i=0; i<candidates.length; i++){
 			int[] colors = new int[3];
 			// retrieve the correct colors
@@ -564,6 +592,73 @@ public class ElectionDataViewer extends JFrame
 		southPanel.setText(document);
 	}
 	/*
+	 * @param candidates:Candidate[]
+	 * @return Candidate[]
+	 * this function takes in the candidates and sort them by the amount of Electoral Votes from greatest to least
+	 */
+	public Candidate[] sortCandidatesByEv(Candidate[] candidates){
+		Candidate temp = new Candidate("", 0);
+		for(int i=0; i<candidates.length-1; i++){
+			for(int j=i+1; j<candidates.length; j++)
+				if(candidates[i].getElectoralVotes().intValueExact()< candidates[j].getElectoralVotes().intValueExact()){
+					temp = candidates[i];
+					candidates[i]=candidates[j];
+					candidates[j]=temp;
+					break;
+			}
+		}
+		return candidates;
+	}
+	/*
+	 * @params candidates:Candidate[]
+	 * @returns Candidate[]
+	 * this function takes an array of candidates and calculates how much each electoral votes
+	 * each candidate received
+	 */
+	public Candidate[] calculateEV(Candidate[] candidates, Object[][]data){
+		//get the necessary key
+		Comparable theKey = dataModel.getElectionResults().getTree().firstKey();
+		for(int i=1; theKey!=null; i++){
+			boolean purple=true;
+			//test if the current line is split, if not, change the boolean to false.
+			//We know it is not a split vote if it matches at least one candidate in candidates.
+			for(int j=0; j<candidates.length; j++){
+				if((data[i][3]).equals(candidates[j].getCandidate())){
+					candidates[j].add(new BigDecimal(data[i][2].toString()));
+					purple =false;
+					break;
+				}
+			}
+			if(purple)
+				splitVotesCase(theKey, candidates);
+			//increment key
+			theKey = dataModel.getElectionResults().getTree().higherKey(theKey);
+		}
+		return candidates;
+	}
+	/*
+	 * @param theKey:Comparable, candidates:Candidate[]
+	 * This function is called if a string is purple and divides up the split votes appropriately
+	 */
+	public void splitVotesCase(Comparable theKey, Candidate[] candidates){
+		PurpleStringInfo info = purpleNamesVotes((String)dataModel.getElectionResults().
+				getRecord(theKey).getData(3));
+		for(int k=0; k<info.getEv().capacity(); k++){
+			//trim the string so no unnecessary whitespace causes difficulty with testing equality
+			String trimmedCandidate = ((String)info.getNames().get(k)).trim();
+			for(int j=0; j<candidates.length; j++){
+				// check if the string matches any candidates, likewise trim the candidate String
+				String trimmedName = candidates[j].getCandidate().trim();
+				//if there is a match, add the electoral vote to the relevant candidate's total
+				if(trimmedCandidate.equals(trimmedName)){
+					candidates[j].add(info.getEv().get(k));
+					break;
+				}
+			}
+		}
+	}
+	
+	/*
 	 * @return Candidate[]
 	 * this function searches through all the candidates and returns an array of Candidate objects
 	 */
@@ -576,103 +671,35 @@ public class ElectionDataViewer extends JFrame
 		}
 		return candidates;
 	}
-
 	/*
-	 * @param data:Object[][]
-	 * @return String
-	 * This function takes the data, initializes the start and end of html and calls the buildTable to do the rest.
+	 * This function initiates the new handlers that should be created
+	 * with the opening of a file to deal with combo boxes.
 	 */
-	public String buildDocument(Object[][] data){
-		final String START_HTML= "<html><body><table border=1>";
-		final String END_HTML= "</table></body></html>";
-		String document=START_HTML;
-		document = buildTable(document,data);
-		//add the rest of the html on.
-		document+=END_HTML;
+	public void initNewHandlers(){
+		winnerComboBox.setSelectedIndex(0);
+		DBFChangeWinner dbfNewWinner = new DBFChangeWinner(this);
+		winnerComboBox.addActionListener(dbfNewWinner);
 		
-		return document;
+		DBFChangeState dbfNewState = new DBFChangeState(this);
+		stateComboBox.addActionListener(dbfNewState);
+		
+		//DBFIncreaseDecreaseHandler switchOrder = new DBFIncreaseDecreaseHandler(this);
+		//increasingCheckBox.addActionListener(switchOrder);
+		
+		DBFSort switchSort = new DBFSort(this);
+		sortingCriteriaComboBox.addActionListener(switchSort);
 	}
 	/*
-	 * @param candidate:Object
-	 * This function returns the correct color for a candidate who has won a state
+	 * @param ae:ActionEvent
+	 * add an action event to the change state combo box
 	 */
-	public String correctColor(Object candidate){
-		String hexColor ="#";
-		for(int j=0; j<dataModel.getParties().getNumFields()-1; j++){
-			/*In order to decode what this monstrosity does
-			 * 1)(Comparable)dataModel.getCandidates().getRecord(theKey).getAllData()[1] gets the candidate's party and
-			 * converts it to a Comparable so it can be used as a key.
-			 * 2)dataModel.getParties().getRecord(1).getAllData()[j+1] gets the relevant r,g, or b color code.
-			 * 3)In order to get an Integer, we need this to be a string, so we convert it to a string and then pass
-			 * it to the static decode method.
-			 * 4)Finally using the intValue() method of Integer the value is converted to an integer so we can later
-			 * convert this to a hexadecimal number to be used in altering the color of the winner of the state.
-			 */
-			Comparable one = (Comparable)dataModel.getCandidates().getRecord((Comparable)candidate).getAllData()[1];
-			Object two = dataModel.getParties().getRecord(one).getAllData()[j+1];
-			int hexTemp = Integer.decode(two.toString()).intValue();
-			String first =Integer.toHexString(hexTemp/16)+Integer.toHexString(hexTemp % 16);
-			hexColor+=first;
-		}
-		return hexColor;
-	}
-	/*
-	 * params data:Object[][], document:String
-	 * @return String
-	 * This function takes in the document variable and the data and fills in the html table
-	 * as is necessary for each field
-	 */
-	public String buildTable(String document, Object[][] data){
-		//go through each row
-		for(int i=0; i<data.length; i++){
-			document+="<tr>";
-			for(int j=0; j<data[i].length; j++){
-				String dataString = ""+data[i][j];
-				//if this is the first row, make sure the tag used is for headers. Otherwise
-				//use the regular tag
-				if(i==0)
-					document+="<th>";
-				else{
-					document+="<td>";
-					//check if the last field is a split vote result
-					if(j==3){
-						boolean purple=false;
-						for(int k=0; k<dataString.length(); k++){
-							//if there is a "(" at any point then it must be a split vote
-							if(dataString.charAt(k)==40){
-								purple=true;	
-								break;
-							}
-						}
-						//add in the color depending on whether it is a mixed vote or not.
-						//note despite the name the mixed vote color is not always purple
-						if(!purple){
-							String realHex =correctColor(data[i][j]);
-							document+="<font color="+realHex+">";
-						}
-						else{
-							String comboHex = mixColors(purpleNamesVotes((String)data[i][j]));
-							document+="<font color="+comboHex+">";
-						}
-					}
-				}
-				document+= dataString;
-				if(i==0)
-					document+="</th>";
-				else
-					document+="</td>";
-			}
-			document+="</tr>";
-		}
-		return document;
-	}
 	public void changeState(ActionEvent ae){
 		JComboBox origin= (JComboBox)ae.getSource();
 		currentStateSelected = (String)origin.getSelectedItem();
 		
 	}
 	/*
-	 * @ param ae:ActionEvent
+	 * @param ae:ActionEvent
 	 * This function changes a winner only if a state has also been selected
 	 */
 	public void changeWinner(ActionEvent ae){
@@ -730,24 +757,6 @@ public class ElectionDataViewer extends JFrame
 		ElectionDataViewer window = new ElectionDataViewer();
 		window.setVisible(true);
 	}	
-	/*
-	 * This function initiates the new handlers that should be created
-	 * with the opening of a file to deal with combo boxes.
-	 */
-	public void initNewHandlers(){
-		winnerComboBox.setSelectedIndex(0);
-		DBFChangeWinner dbfNewWinner = new DBFChangeWinner(this);
-		winnerComboBox.addActionListener(dbfNewWinner);
-		
-		DBFChangeState dbfNewState = new DBFChangeState(this);
-		stateComboBox.addActionListener(dbfNewState);
-		
-		//DBFIncreaseDecreaseHandler switchOrder = new DBFIncreaseDecreaseHandler(this);
-		//increasingCheckBox.addActionListener(switchOrder);
-		
-		DBFSort switchSort = new DBFSort(this);
-		sortingCriteriaComboBox.addActionListener(switchSort);
-	}
 	public class DBFChangeState implements ActionListener {
 		private ElectionDataViewer view;
 		public DBFChangeState(ElectionDataViewer initFileManager)
@@ -760,7 +769,11 @@ public class ElectionDataViewer extends JFrame
 			view.changeState(ae);
 		}
 	}
-	
+	/*
+	 * These series of classes define the Action Event classes.
+	 * They are fairly generic and contain the same framework of initialize their
+	 * own ElectionDataViewer, and then when called call a function from ElectionDataViewer
+	 */
 	public class DBFChangeWinner implements ActionListener {
 		private ElectionDataViewer view;
 		public DBFChangeWinner(ElectionDataViewer initFileManager)
@@ -773,20 +786,6 @@ public class ElectionDataViewer extends JFrame
 			view.changeWinner(ae);
 		}
 	}
-	
-	/*public class DBFIncreaseDecreaseHandler implements ActionListener {
-		private ElectionDataViewer view;
-		public DBFIncreaseDecreaseHandler(ElectionDataViewer initFileManager)
-		{
-			view = initFileManager;
-		}
-		
-		public void actionPerformed(ActionEvent ae)
-		{
-			view.increasingOrDecreasing(ae);
-		}
-	}*/
-	
 	public class DBFSort implements ActionListener {
 		private ElectionDataViewer view;
 		public DBFSort(ElectionDataViewer initFileManager)
